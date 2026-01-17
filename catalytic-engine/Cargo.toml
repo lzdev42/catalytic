@@ -1,0 +1,55 @@
+[package]
+name = "catalytic-engine"
+version = "0.1.0"
+edition = "2021"
+authors = ["Catalytic Team"]
+description = "Catalytic Engine - 自动化测试引擎核心"
+license = "MIT"
+
+[lib]
+name = "catalytic"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# 异步运行时
+tokio = { version = "1", features = ["full"] }
+
+# 序列化
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# 嵌入式数据库
+redb = "2"
+
+# 正则表达式
+regex = "1"
+
+# JSON 路径解析
+jsonpath-rust = "0.5"
+
+# 错误处理
+thiserror = "1"
+
+# 日志
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# 高性能锁
+parking_lot = "0.12"
+
+# 表达式求值
+evalexpr = "11"
+
+# 时间处理
+chrono = { version = "0.4", features = ["serde"] }
+
+[build-dependencies]
+cbindgen = "0.26"
+
+[dev-dependencies]
+tokio-test = "0.4"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3

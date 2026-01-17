@@ -1,0 +1,282 @@
+syntax = "proto3";
+
+package catalytic;
+
+option csharp_namespace = "Catalytic.Grpc";
+option java_package = "com.catalytic.grpc";
+option java_multiple_files = true;
+
+// =============================================================================
+// Host Service - Main entry point for UI communication
+// =============================================================================
+
+service HostService {
+    // =========== System ===========
+    rpc GetSystemInfo(Empty) returns (SystemInfo);
+    rpc Shutdown(Empty) returns (Result);
+    
+    // =========== Device Types ===========
+    rpc ListDeviceTypes(Empty) returns (DeviceTypeList);
+    rpc CreateDeviceType(DeviceType) returns (Result);
+    rpc UpdateDeviceType(DeviceType) returns (Result);
+    rpc DeleteDeviceType(DeviceTypeId) returns (Result);
+    
+    // =========== Commands ===========
+    // rpc ListCommands(DeviceTypeId) returns (CommandList); // Deprecated by Nested DeviceType
+    rpc CreateCommand(Command) returns (Result); // Kept for legacy/granular support
+    rpc UpdateCommand(Command) returns (Result); // Kept for legacy/granular support
+    // rpc DeleteCommand(CommandId) returns (Result); // Removed: Unused and broken
+
+    // =========== Devices ===========
+    // rpc ListDevices(Empty) returns (DeviceList); // Deprecated by Nested DeviceType
+    rpc ListDevices(Empty) returns (DeviceList); // Kept for now to avoid breaking verify steps too aggressively
+    rpc CreateDevice(Device) returns (Result);
+    rpc UpdateDevice(Device) returns (Result);
+    rpc DeleteDevice(DeviceId) returns (Result);
+    rpc ScanDevices(ScanRequest) returns (ScanResult);
+    rpc TestConnection(DeviceId) returns (ConnectionTestResult);
+    
+    // =========== Slots ===========
+    rpc ListSlots(Empty) returns (SlotList);
+    rpc SetSlotBinding(SlotBinding) returns (Result);
+    rpc SetSlotCount(SlotCountRequest) returns (Result);
+    rpc GetSlotStatus(SlotId) returns (SlotStatus);  // [NEW] 获取槽位运行状态
+    rpc SetSlotSn(SetSlotSnRequest) returns (Result);  // [NEW] 设置槽位 SN
+    
+    // =========== Test Script ===========
+    rpc LoadTestScript(TestScript) returns (Result);
+    rpc GetCurrentScript(Empty) returns (TestScript);
+    
+    // =========== Test Step Management (Granular) ===========
+    rpc AddTestStep(TestStepPayload) returns (Result);
+    rpc UpdateTestStep(TestStepPayload) returns (Result);
+    rpc DeleteTestStep(TestStepId) returns (Result);
+    rpc ReorderTestSteps(ReorderStepsRequest) returns (Result);
+    
+    // =========== Test Execution ===========
+    rpc StartTest(StartTestRequest) returns (Result);
+    rpc PauseTest(SlotId) returns (Result);
+    rpc ResumeTest(SlotId) returns (Result);
+    rpc StopTest(SlotId) returns (Result);
+    
+    // =========== Plugins ===========
+    rpc ListPlugins(Empty) returns (PluginList);
+    
+    // =========== Streaming ===========
+    rpc Subscribe(SubscribeRequest) returns (stream Event);
+}
+
+// =============================================================================
+// Common Types
+// =============================================================================
+
+message Empty {}
+
+message Result {
+    bool success = 1;
+    string error = 2;
+}
+
+message SystemInfo {
+    string version = 1;
+    int32 slot_count = 2;
+    bool engine_loaded = 3;
+    repeated string registered_protocols = 4;
+}
+
+// =============================================================================
+// Device Types
+// =============================================================================
+
+message DeviceTypeId {
+    string id = 1;
+}
+
+message DeviceType {
+    string id = 1;
+    string name = 2;
+    string plugin_id = 3;   // 通讯插件 ID（必填）
+    
+    // Nested Data for Batch Load/Save
+    repeated Device devices = 10;
+    repeated Command commands = 11;
+}
+
+message DeviceTypeList {
+    repeated DeviceType items = 1;
+}
+
+// =============================================================================
+// Commands (associated with DeviceType)
+// =============================================================================
+
+// message CommandId { string id = 1; } // Removed
+
+message Command {
+    string id = 1;
+    string device_type_id = 2;  // 所属设备类型
+    string name = 3;            // 命令名称 (如 "读取电压")
+    string payload = 4;         // 命令载荷 (如 "MEAS:VOLT:DC?")
+    string parse_rule = 5;      // 解析规则 (可选)
+    uint32 timeout_ms = 6;      // 超时时间 (毫秒)
+}
+
+message CommandList {
+    repeated Command items = 1;
+}
+
+// =============================================================================
+// Devices
+// =============================================================================
+
+message DeviceId {
+    string id = 1;
+}
+
+message Device {
+    string id = 1;
+    string device_type_id = 2;
+    string name = 3;
+    string address = 4;
+}
+
+message DeviceList {
+    repeated Device items = 1;
+}
+
+message ScanRequest {
+    string transport = 1;
+}
+
+message ScanResult {
+    repeated string addresses = 1;
+}
+
+message ConnectionTestResult {
+    bool success = 1;
+    string message = 2;
+    int32 latency_ms = 3;
+}
+
+// =============================================================================
+// Slots
+// =============================================================================
+
+message SlotId {
+    uint32 id = 1;
+}
+
+// 设备绑定列表（支持每个类型绑定多个设备）
+message DeviceBindingList {
+    repeated string device_ids = 1;
+}
+
+message SlotBinding {
+    uint32 slot_id = 1;
+    map<string, DeviceBindingList> device_bindings = 2;  // device_type_id -> [device_ids]
+}
+
+message SlotList {
+    repeated SlotBinding items = 1;
+}
+
+message SlotCountRequest {
+    uint32 count = 1;
+}
+
+message SetSlotSnRequest {
+    int32 slot_id = 1;
+    string sn = 2;
+}
+
+message SlotStatus {
+    uint32 slot_id = 1;
+    string status = 2;              // "idle", "running", "paused", "error", "completed"
+    uint32 current_step_index = 3;  // 当前步骤索引 (从0开始)
+    uint32 total_steps = 4;         // 总步骤数
+    uint64 elapsed_ms = 5;          // 已运行时间(毫秒)
+    string sn = 6;                  // 产品序列号 (可选)
+    // 新增字段 (2026-01-09)
+    string current_step_name = 7;   // 当前步骤名称
+    string current_step_desc = 8;   // 当前步骤描述 (可选)
+    repeated SlotVariable variables = 9;  // 变量列表
+    string error_message = 10;     // [NEW] 错误信息
+}
+
+// 槽位运行时变量
+message SlotVariable {
+    string name = 1;       // 变量名
+    string value = 2;      // 值 (转为字符串)
+    string unit = 3;       // 单位 (可选)
+    bool is_passing = 4;   // 检查是否通过
+}
+
+// =============================================================================
+// Test Script (loaded as a whole, not edited via API)
+// =============================================================================
+
+message TestScript {
+    string name = 1;
+    string json_content = 2;  // Full script as JSON
+}
+
+message TestStepPayload {
+    string json_content = 1; // Single step JSON
+}
+
+message TestStepId {
+    uint32 id = 1;
+}
+
+message ReorderStepsRequest {
+    repeated uint32 step_ids = 1;
+}
+
+message StartTestRequest {
+    uint32 slot_id = 1;
+    bool loop = 2;
+}
+
+// =============================================================================
+// Plugins
+// =============================================================================
+
+message Plugin {
+    string id = 1;
+    string name = 2;
+    string version = 3;
+    repeated string protocols = 4;
+    repeated string types = 5;  // "protocol_driver", "task_handler"
+}
+
+message PluginList {
+    repeated Plugin items = 1;
+}
+
+// =============================================================================
+// Streaming Events
+// =============================================================================
+
+message SubscribeRequest {
+    repeated string topics = 1;  // "slot_update", "log"
+}
+
+message Event {
+    string type = 1;
+    oneof payload {
+        SlotUpdateEvent slot_update = 2;
+        LogEvent log = 3;
+    }
+}
+
+message SlotUpdateEvent {
+    uint32 slot_id = 1;
+    SlotStatus status = 2;
+}
+
+message LogEvent {
+    string level = 1;
+    string source = 2;
+    string message = 3;
+    int64 timestamp = 4;
+}

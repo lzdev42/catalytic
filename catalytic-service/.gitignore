@@ -1,0 +1,12 @@
+# --- Build Results ---
+[Bb]in/
+[Oo]bj/
+/publish/
+/publish_output/
+/test-results/
+
+# --- IDE Specific ---
+.vs/
+*.user
+*.suo
+# 注意：*.slnx 是新版 Solution 格式，必须提交，不要进入 ignore

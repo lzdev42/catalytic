@@ -1,0 +1,14 @@
+{
+    "id": "catalytic.serial",
+    "name": "Serial Port Driver",
+    "version": "1.0.0",
+    "description": "SCPI over Serial Port communication driver",
+    "author": "Catalytic Team",
+    "capabilities": {
+        "protocols": [
+            "serial",
+            "scpi"
+        ]
+    },
+    "entry": "SerialPlugin.dll"
+}

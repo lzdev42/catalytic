@@ -1,0 +1,7 @@
+/target
+
+# --- Cargo Build ---
+/target/
+
+# --- Backup Files ---
+**/*.rs.bk
