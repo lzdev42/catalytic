@@ -1,0 +1,84 @@
+name: Dev Build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.jvmargs=-Xmx4g
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            platform: macos
+            asset_ext: dmg
+          - os: ubuntu-24.04
+            platform: linux
+            asset_ext: AppImage
+          - os: windows-latest
+            platform: windows
+            asset_ext: msi
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ============================================================
+      # Environment Setup (Infrastructure Layer)
+      # ============================================================
+      - name: Setup Java 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Install Linux Dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfuse2 wget
+
+      # ============================================================
+      # Build (Logic Layer - all handled by script)
+      # ============================================================
+      - name: Grant execute permission
+        if: runner.os != 'Windows'
+        run: chmod +x ./build_release.sh
+
+      - name: Run Build Script (Unix)
+        if: runner.os != 'Windows'
+        run: ./build_release.sh --output ./dist --skip-sign
+
+      - name: Run Build Script (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: ./build_release.sh --output ./dist --skip-sign
+
+      # ============================================================
+      # Upload Artifacts
+      # ============================================================
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: catalytic-${{ matrix.platform }}
+          path: |
+            dist/*.${{ matrix.asset_ext }}
+          retention-days: 14

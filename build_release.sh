@@ -295,24 +295,82 @@ case "$PLATFORM" in
         ;;
         
     linux)
-        # Find AppImage
-        APPIMAGE=$(find "$PROJECT_ROOT/catalyticui/composeApp/build/compose/binaries" -name "*.AppImage" | head -1)
+        echo "📦 Building Linux AppImage..."
         
-        if [[ -z "$APPIMAGE" ]]; then
-            echo "❌ AppImage not found"
+        # Find the Gradle-built app directory
+        APPDIR="$PROJECT_ROOT/catalyticui/composeApp/build/compose/binaries/main-release/app/Catalytic"
+        
+        if [[ ! -d "$APPDIR" ]]; then
+            echo "❌ Gradle AppDir not found at: $APPDIR"
             exit 1
         fi
         
-        # Copy to output with arch suffix
+        # Inject Service into AppDir (critical step)
+        echo "   💉 Injecting service into AppDir..."
+        SERVICE_TARGET="$APPDIR/lib/app/service"
+        mkdir -p "$SERVICE_TARGET"
+        cp -r "$SERVICE_DIR/"* "$SERVICE_TARGET/"
+        echo "   ✓ Service injected to: $SERVICE_TARGET"
+        
+        # Download appimagetool if not cached
+        APPIMAGETOOL_CACHE="$PROJECT_ROOT/build/cache"
+        APPIMAGETOOL="$APPIMAGETOOL_CACHE/appimagetool"
+        if [[ ! -x "$APPIMAGETOOL" ]]; then
+            echo "   ⬇️  Downloading appimagetool..."
+            mkdir -p "$APPIMAGETOOL_CACHE"
+            wget -q -O "$APPIMAGETOOL" "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+            chmod +x "$APPIMAGETOOL"
+        fi
+        
+        # Create .desktop file if missing
+        DESKTOP_FILE="$APPDIR/catalytic.desktop"
+        if [[ ! -f "$DESKTOP_FILE" ]]; then
+            echo "   📝 Creating .desktop file..."
+            cat > "$DESKTOP_FILE" << 'DESKTOP_EOF'
+[Desktop Entry]
+Type=Application
+Name=Catalytic
+Exec=Catalytic
+Icon=catalytic
+Categories=Development;
+Comment=Low-code automation testing platform
+DESKTOP_EOF
+        fi
+        
+        # Create AppRun if missing
+        APPRUN="$APPDIR/AppRun"
+        if [[ ! -f "$APPRUN" ]]; then
+            echo "   📝 Creating AppRun..."
+            cat > "$APPRUN" << 'APPRUN_EOF'
+#!/bin/bash
+cd "$(dirname "$0")"
+exec ./lib/app/bin/Catalytic "$@"
+APPRUN_EOF
+            chmod +x "$APPRUN"
+        fi
+        
+        # Create icon symlink if missing
+        if [[ ! -f "$APPDIR/catalytic.png" ]]; then
+            # Try to find an icon in the lib directory
+            ICON_SRC=$(find "$APPDIR/lib" -name "*.png" -type f | head -1)
+            if [[ -n "$ICON_SRC" ]]; then
+                cp "$ICON_SRC" "$APPDIR/catalytic.png"
+            else
+                # Create a placeholder icon (1x1 transparent PNG)
+                echo "   ⚠️  No icon found, creating placeholder..."
+                printf '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82' > "$APPDIR/catalytic.png"
+            fi
+        fi
+        
+        # Generate AppImage
+        echo "   📦 Generating AppImage..."
         APPIMAGE_NAME="Catalytic-$ARCH_NAME.AppImage"
-        cp "$APPIMAGE" "$OUTPUT_DIR/$APPIMAGE_NAME"
+        ARCH=x86_64 "$APPIMAGETOOL" "$APPDIR" "$OUTPUT_DIR/$APPIMAGE_NAME"
         chmod +x "$OUTPUT_DIR/$APPIMAGE_NAME"
         
-        # TODO: Inject service into AppImage if needed
-        # AppImage 需要特殊处理，目前先跳过
-        echo "   ⚠️  Note: Service injection for AppImage not implemented yet"
-        echo "   ✓ AppImage copied: $APPIMAGE_NAME"
+        echo "   ✓ AppImage created: $APPIMAGE_NAME"
         ;;
+
         
     windows)
         # Find MSI
