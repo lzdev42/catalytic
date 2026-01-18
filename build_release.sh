@@ -202,7 +202,9 @@ case "$PLATFORM" in
         ./gradlew :composeApp:packageReleaseDistributionForCurrentOS --no-configuration-cache
         ;;
     linux)
-        ./gradlew :composeApp:packageReleaseAppImage --no-configuration-cache
+        # Linux 没有 packageReleaseAppImage 任务，使用 createDistributable 创建应用目录
+        # 然后由脚本后续步骤用 appimagetool 手动打包
+        ./gradlew :composeApp:createReleaseDistributable --no-configuration-cache
         ;;
     windows)
         ./gradlew :composeApp:packageReleaseMsi --no-configuration-cache

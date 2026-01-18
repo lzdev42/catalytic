@@ -17,6 +17,9 @@ workfolder/
 # 注意：*.jar 会被 catalyticui 覆盖
 *.jar
 *.log
+*.pdb
+publish/
+publish_output/
 
 # --- Python 缓存 ---
 __pycache__/
