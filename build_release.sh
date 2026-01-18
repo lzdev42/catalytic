@@ -169,11 +169,11 @@ echo "   ✓ Engine built: $ENGINE_LIB"
 # ==========================================
 echo ""
 echo "🔮 Building Host (.NET)..."
-cd "$PROJECT_ROOT/catalytic/Catalytic"
-dotnet publish -c Release -r "$DOTNET_RID" --self-contained true -o "$PROJECT_ROOT/catalytic/Catalytic/publish_output"
+cd "$PROJECT_ROOT/catalytic-service/Catalytic"
+dotnet publish -c Release -r "$DOTNET_RID" --self-contained true -o "$PROJECT_ROOT/catalytic-service/Catalytic/publish_output"
 
 # Copy all publish output to service dir
-cp -r "$PROJECT_ROOT/catalytic/Catalytic/publish_output/"* "$SERVICE_DIR/"
+cp -r "$PROJECT_ROOT/catalytic-service/Catalytic/publish_output/"* "$SERVICE_DIR/"
 
 # Rename Host executable to avoid collision with UI
 if [[ "$PLATFORM" == "macos" || "$PLATFORM" == "linux" ]]; then
