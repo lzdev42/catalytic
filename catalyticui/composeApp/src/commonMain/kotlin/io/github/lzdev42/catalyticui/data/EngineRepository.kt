@@ -133,4 +133,23 @@ interface EngineRepository {
      * 设置槽位 SN
      */
     suspend fun setSlotSn(slotId: Int, sn: String)
+    
+    // ==========================================
+    // Device Connection Management
+    // ==========================================
+    
+    /**
+     * 设备连接状态流
+     */
+    val deviceConnectionsFlow: Flow<List<io.github.lzdev42.catalyticui.model.DeviceConnectionState>>
+    
+    /**
+     * 连接设备
+     */
+    suspend fun connectDevice(deviceId: String): Result<Unit>
+    
+    /**
+     * 断开设备连接
+     */
+    suspend fun disconnectDevice(deviceId: String): Result<Unit>
 }

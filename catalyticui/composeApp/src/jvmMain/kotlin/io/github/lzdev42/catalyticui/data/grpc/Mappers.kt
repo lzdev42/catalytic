@@ -17,6 +17,20 @@ object Mappers {
     
     private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
         .withZone(ZoneId.systemDefault())
+
+    fun mapConnectionStatus(grpc: com.catalytic.grpc.DeviceConnectionStatus): io.github.lzdev42.catalyticui.model.DeviceConnectionState {
+        val status = when (grpc.status.lowercase()) {
+            "connected" -> io.github.lzdev42.catalyticui.model.ConnectionStatus.CONNECTED
+            "connecting" -> io.github.lzdev42.catalyticui.model.ConnectionStatus.CONNECTING
+            "error" -> io.github.lzdev42.catalyticui.model.ConnectionStatus.ERROR
+            else -> io.github.lzdev42.catalyticui.model.ConnectionStatus.DISCONNECTED
+        }
+        return io.github.lzdev42.catalyticui.model.DeviceConnectionState(
+            deviceId = grpc.device_id,
+            status = status,
+            errorMessage = grpc.error_message
+        )
+    }
     
     /**
      * gRPC SlotStatus → UI SlotStatus 枚举

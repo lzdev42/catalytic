@@ -40,6 +40,12 @@ class MainViewModel(
     
     private val _isConnected = MutableStateFlow(false)
     val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
+
+    private val _deviceConnections = MutableStateFlow<List<io.github.lzdev42.catalyticui.model.DeviceConnectionState>>(emptyList())
+    val deviceConnections: StateFlow<List<io.github.lzdev42.catalyticui.model.DeviceConnectionState>> = _deviceConnections.asStateFlow()
+
+    private val _allDevices = MutableStateFlow<List<io.github.lzdev42.catalyticui.model.DeviceUiState>>(emptyList())
+    val allDevices: StateFlow<List<io.github.lzdev42.catalyticui.model.DeviceUiState>> = _allDevices.asStateFlow()
     
     // Alert dialog state
     private val _alertState = MutableStateFlow(AlertState.Hidden)
@@ -85,6 +91,16 @@ class MainViewModel(
         
         viewModelScope.launch {
             repository.systemLogsFlow.collect { _systemLogs.value = it }
+        }
+        
+        viewModelScope.launch {
+            repository.deviceConnectionsFlow.collect { _deviceConnections.value = it }
+        }
+        
+        viewModelScope.launch {
+            repository.isConnected.collect { connected ->
+                if (connected) loadDevices()
+            }
         }
     }
     
@@ -192,6 +208,20 @@ class MainViewModel(
             }
         }
     }
+
+    fun connectDevice(deviceId: String) {
+        viewModelScope.launch {
+            repository?.connectDevice(deviceId)
+                ?.onFailure { _alertState.value = AlertState.show("连接失败", it.message ?: "") }
+        }
+    }
+
+    fun disconnectDevice(deviceId: String) {
+        viewModelScope.launch {
+            repository?.disconnectDevice(deviceId)
+                ?.onFailure { _alertState.value = AlertState.show("断开失败", it.message ?: "") }
+        }
+    }
     
     // ========== Helper ==========
     
@@ -204,6 +234,16 @@ class MainViewModel(
     private fun addLog(message: String) {
         val time = getCurrentTimeString()
         _systemLogs.update { (it + "$time $message").takeLast(500) }
+    }
+
+    private fun loadDevices() {
+        if (repository == null) return
+        viewModelScope.launch {
+            val types = repository.getDeviceTypes()
+            val flattened = types.flatMap { type -> type.devices }
+            _allDevices.value = flattened
+            hasDevices = flattened.isNotEmpty()
+        }
     }
     
     // ==========================================================

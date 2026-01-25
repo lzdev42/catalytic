@@ -19,18 +19,20 @@ public class HostGrpcService : HostService.HostServiceBase
     private readonly AppConfig _config;
     private readonly Action _shutdownAction;
     private readonly Engine.Engine _engine;
+    private readonly DeviceManager _deviceManager;
     
     private const uint DefaultTimeoutMs = 1000;
     
     /// <summary>
     /// 构造函数，通过依赖注入获取所需服务
     /// </summary>
-    public HostGrpcService(PluginManager pluginManager, AppConfig config, Action shutdownAction, Engine.Engine engine)
+    public HostGrpcService(PluginManager pluginManager, AppConfig config, Action shutdownAction, Engine.Engine engine, DeviceManager deviceManager)
     {
         _pluginManager = pluginManager;
         _config = config;
         _shutdownAction = shutdownAction;
         _engine = engine;
+        _deviceManager = deviceManager;
     }
     
     // =========== 辅助方法 ===========
@@ -436,6 +438,56 @@ public class HostGrpcService : HostService.HostServiceBase
             Success = false,
             Message = "尚未实现"
         });
+    }
+
+    // =========== 设备连接管理 ===========
+    
+    /// <summary>
+    /// 连接设备
+    /// </summary>
+    public override async Task<Result> ConnectDevice(DeviceId request, ServerCallContext context)
+    {
+        Logger.Info($"连接设备: {request.Id}");
+        var (success, error) = await _deviceManager.ConnectAsync(request.Id, context.CancellationToken);
+        return new Result { Success = success, Error = error ?? "" };
+    }
+
+    /// <summary>
+    /// 断开设备
+    /// </summary>
+    public override async Task<Result> DisconnectDevice(DeviceId request, ServerCallContext context)
+    {
+        Logger.Info($"断开设备: {request.Id}");
+        var (success, error) = await _deviceManager.DisconnectAsync(request.Id, context.CancellationToken);
+        return new Result { Success = success, Error = error ?? "" };
+    }
+
+    /// <summary>
+    /// 获取所有设备连接状态
+    /// </summary>
+    public override Task<DeviceConnectionStatusList> ListDeviceConnectionStatus(Empty request, ServerCallContext context)
+    {
+        var connections = _deviceManager.GetAllConnectionStatus();
+        var result = new DeviceConnectionStatusList();
+        
+        foreach (var conn in connections)
+        {
+            result.Items.Add(new DeviceConnectionStatus
+            {
+                DeviceId = conn.DeviceId,
+                Status = conn.State switch
+                {
+                    DeviceConnectionState.Disconnected => "disconnected",
+                    DeviceConnectionState.Connecting => "connecting",
+                    DeviceConnectionState.Connected => "connected",
+                    DeviceConnectionState.Error => "error",
+                    _ => "disconnected"
+                },
+                ErrorMessage = conn.ErrorMessage ?? ""
+            });
+        }
+        
+        return Task.FromResult(result);
     }
 
     // =========== 槽位 ===========

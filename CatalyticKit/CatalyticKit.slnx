@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="../TestServer/TestServer.csproj" />
+  <Project Path="CatalyticKit/CatalyticKit.csproj" />
+</Solution>

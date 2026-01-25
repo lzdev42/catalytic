@@ -11,11 +11,13 @@ public sealed class EngineTaskDispatcher
 {
     private readonly Engine _engine;
     private readonly PluginManager _pluginManager;
+    private readonly DataManager _dataManager;
 
-    public EngineTaskDispatcher(Engine engine, PluginManager pluginManager)
+    public EngineTaskDispatcher(Engine engine, PluginManager pluginManager, DataManager dataManager)
     {
         _engine = engine;
         _pluginManager = pluginManager;
+        _dataManager = dataManager;
         
         // 注册回调
         engine.OnEngineTask(HandleEngineTask);
@@ -32,6 +34,23 @@ public sealed class EngineTaskDispatcher
     {
         try
         {
+            // [Fix] Auto-Clear: 每次开始采集前清空旧数据，防止脏读
+            // 注意: "Start" 是惯用动作名，具体取决于 Engine/UI 约定，建议统一使用 CommAction.Start 或 "start"
+            if (args.ActionType.Equals("start", StringComparison.OrdinalIgnoreCase) || 
+                args.ActionType.Equals("connect", StringComparison.OrdinalIgnoreCase))
+            {
+                _dataManager.ClearData(args.DeviceAddress);
+            }
+
+            // Special Action Interception: FetchData
+            // 这是一个 Low-code 模式下的特殊指令，不走硬件通讯，直接从 DataManager 拿数据
+            if (args.ActionType.Equals("FetchData", StringComparison.OrdinalIgnoreCase))
+            {
+                var data = _dataManager.GetData(args.DeviceAddress);
+                _engine.SubmitResult(args.SlotId, args.TaskId, data);
+                return;
+            }
+
             var communicator = _pluginManager.GetCommunicatorById(args.PluginId);
             if (communicator == null)
             {

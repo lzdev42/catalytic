@@ -95,7 +95,9 @@ catch (Exception ex)
 }
 
 // 加载插件
-var pluginManager = new PluginManager();
+// [New] 创建 DataManager
+var dataManager = new DataManager();
+var pluginManager = new PluginManager(dataManager);
 
 // 设置插件日志处理器
 pluginManager.OnLog += (level, pluginId, message) =>
@@ -130,7 +132,7 @@ Logger.Info($"已注册协议: {string.Join(", ", pluginManager.GetRegisteredPro
 // ========== 创建任务分发器 ==========
 // 这里的变量需要保持引用，虽然在这个简单的 Program.cs 中 engine 和 pluginManager 会一直存活，
 // 但为了语义明确，我们显式持有它们。
-var engineTaskDispatcher = new EngineTaskDispatcher(engine, pluginManager);
+var engineTaskDispatcher = new EngineTaskDispatcher(engine, pluginManager, dataManager);
 var hostTaskDispatcher = new HostTaskDispatcher(engine, pluginManager);
 Logger.Info("✓ 任务分发器已创建，等待 Engine 任务...");
 
@@ -171,8 +173,30 @@ builder.WebHost.ConfigureKestrel(options =>
 // 注册服务
 builder.Services.AddGrpc();
 builder.Services.AddSingleton(pluginManager);
+builder.Services.AddSingleton(dataManager); // [New] 注册 DataManager
 builder.Services.AddSingleton(config);
 builder.Services.AddSingleton(engine);  // 注入 Engine
+
+// 创建并注册 DeviceManager
+var deviceManager = new DeviceManager(pluginManager, engine);
+deviceManager.OnLog = (level, source, message) =>
+{
+    var levelStr = level switch
+    {
+        LogLevel.Debug => "DEBUG",
+        LogLevel.Info => "INFO",
+        LogLevel.Warning => "WARN",
+        LogLevel.Error => "ERROR",
+        _ => "UNKNOWN"
+    };
+    Logger.Log(levelStr, source, message);
+};
+builder.Services.AddSingleton(deviceManager);
+
+// 绑定插件事件 (Multicast Delegate)
+pluginManager.OnPluginEvent += deviceManager.HandlePluginEvent;
+pluginManager.OnPluginEvent += dataManager.HandlePluginEvent;
+
 builder.Services.AddSingleton<Action>(() => cts.Cancel());  // 注入关闭回调
 
 var app = builder.Build();

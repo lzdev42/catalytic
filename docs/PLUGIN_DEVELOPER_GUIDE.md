@@ -442,6 +442,38 @@ public enum LogLevel
 }
 ```
 
+### 5.8 常用工具扩展 (Utility Extensions)
+
+SDK 提供了 `CatalyticKit.StringExtension` 和 `CatalyticKit.ByteExtension`，包含常用的类型转换和格式化工具，建议优先使用以减少重复代码。
+
+#### 字符串扩展 (StringExtension)
+
+```csharp
+// 安全转换 (转换失败返回默认值，不抛异常)
+bool b1 = "true".ToBool();           // true
+bool b2 = "1".ToBool();              // true
+int i = "123".ToInt(defaultValue: 0);
+double d = "3.14".ToDouble();
+DateTime dt = "2026-01-01".ToDateTime(defaultValue: DateTime.Now);
+
+// Hex 字符串转字节数组 (支持空/null/空格/连字符/冒号)
+byte[] data1 = "AABBCC".ToBytes();              // [0xAA, 0xBB, 0xCC]
+byte[] data2 = "AA-BB-CC".ToBytes();            // [0xAA, 0xBB, 0xCC]
+byte[] data3 = "AA BB CC".ToBytes();            // [0xAA, 0xBB, 0xCC]
+
+// 尝试转换 (安全模式)
+if ("AABB".TryToBytes(out byte[] result)) { ... }
+```
+
+#### 字节扩展 (ByteExtension)
+
+```csharp
+byte[] data = { 0xAA, 0xBB, 0xCC };
+
+// 转带空格的 Hex 字符串 (高性能)
+string hex = data.ToHexStringWithSpaces(); // "AA BB CC"
+```
+
 ---
 
 ## 6. 完整示例：通讯器插件
@@ -980,13 +1012,76 @@ public Task ActivateAsync(IPluginContext context)
 
 ### 9.3 推送异步事件
 
-用于设备主动推送数据的场景（如 CAN 监控）：
+用于设备主动推送数据（如 CAN 帧监控、设备报警）或状态变更（如断线通知）。
 
+**标准事件：设备断线**
+
+当插件检测到设备连接意外断开时，**强烈建议**主动推送 `DeviceDisconnected` 事件，以便 Host 立即更新状态，而不是等待下一次心跳或操作失败。
+
+```csharp
+using CatalyticKit; // 引用 PluginEvents
+
+public void OnConnectionLost(string address)
+{
+    // Payload 必须是 UTF8 编码的设备地址
+    var payload = System.Text.Encoding.UTF8.GetBytes(address);
+    
+    // 使用标准常量推送事件
+    _context?.PushEvent(PluginEvents.DeviceDisconnected, payload);
+    
+    _context?.Log(LogLevel.Warning, $"[{address}] 检测到断线，已通知 Host");
+}
+```
+
+**自定义事件**
+
+插件也可以定义自己的事件类型，供上层业务处理。
 ```csharp
 public void OnDataReceived(byte[] data)
 {
-    // 推送事件到 Host
+    // 推送自定义事件
     _context?.PushEvent("can_frame", data);
+}
+```
+
+### 9.4 低代码模式数据推送 (Low-Code Data Push)
+
+当使用 Catalytic Engine 的低代码模式（Engine Controlled）判断 Pass/Fail 时，Host 会使用特殊的 `FetchData` 指令来获取设备数据。为了确保 Engine 能正确解析数据（Regex/Numeric Check）：
+
+> [!IMPORTANT]
+> **约束**: 若要支持低代码判断，推送到 `DeviceData` 通道的数据 **必须是 UTF-8 编码的字符串或 JSON**。如果是私有二进制格式，低代码引擎将无法解析。
+
+```csharp
+// ✅ 正确：推送到 Host 蓄水池，供 Low-code Engine 或 Business Plugin 读取
+// 使用便捷扩展方法
+_context?.PushDeviceData(address, System.Text.Encoding.UTF8.GetBytes("VOLT 5.003"));
+```
+
+### 9.5 业务插件获取数据 (Processor Data Pull)
+
+业务插件（Processor）在执行计算任务时，可以通过 `GetDeviceData` 接口从 Host 蓄水池中拉取设备刚才推送的数据。
+
+```csharp
+// 在 IProcessor.ExecuteAsync 中
+public async Task<byte[]> ExecuteAsync(string parametersJson, CancellationToken ct)
+{
+    // 假设参数中指定了要处理的设备地址
+    var deviceAddress = "TCPIP0::..."; 
+    
+    // 从 Host 缓冲区拉取数据（拉取后缓冲区会被清空？取决于 Host 实现，当前实现为 GetAndClear）
+    // 注意：GetDeviceData 是非阻塞的，如果数据没来，返回空数组
+    var data = _context.GetDeviceData(deviceAddress);
+    
+    if (data.Length == 0)
+    {
+        _context.Log(LogLevel.Warning, "未获取到设备数据");
+        return Array.Empty<byte>();
+    }
+    
+    // 执行复杂计算 (如 FFT, 眼图分析)
+    var result = PerformComplexAnalysis(data);
+    
+    return result;
 }
 ```
 
@@ -1127,6 +1222,7 @@ dotnet publish -c Release --self-contained false
 | `IPlugin.cs` | 接口定义 |
 | `CommAction.cs` | 标准动作枚举 |
 | `CommunicatorExtensions.cs` | 扩展方法 |
+| `PluginEvents.cs` | 标准事件常量 |
 | `LogLevel.cs` | 日志级别 |
 
 ---

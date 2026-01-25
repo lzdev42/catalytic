@@ -31,6 +31,9 @@ class MockEngineRepository : EngineRepository {
     private val _logsFlow = MutableStateFlow<List<String>>(emptyList())
     override val systemLogsFlow: Flow<List<String>> = _logsFlow.asStateFlow()
 
+    private val _deviceConnectionsFlow = MutableStateFlow<List<DeviceConnectionState>>(emptyList())
+    override val deviceConnectionsFlow: Flow<List<DeviceConnectionState>> = _deviceConnectionsFlow.asStateFlow()
+
     override val isConnected: Flow<Boolean> = flow { 
         emit(true) // Always connected in Mock mode
     }
@@ -182,5 +185,29 @@ class MockEngineRepository : EngineRepository {
     
     override suspend fun setSlotSn(slotId: Int, sn: String) {
         log("setSlotSn(slotId=$slotId, sn=$sn)")
+    }
+
+    override suspend fun connectDevice(deviceId: String): Result<Unit> {
+        log("connectDevice", deviceId)
+        updateConnectionStatus(deviceId, ConnectionStatus.CONNECTED)
+        return Result.success(Unit)
+    }
+
+    override suspend fun disconnectDevice(deviceId: String): Result<Unit> {
+        log("disconnectDevice", deviceId)
+        updateConnectionStatus(deviceId, ConnectionStatus.DISCONNECTED)
+        return Result.success(Unit)
+    }
+
+    private fun updateConnectionStatus(deviceId: String, status: ConnectionStatus) {
+        val current = _deviceConnectionsFlow.value.toMutableList()
+        val index = current.indexOfFirst { it.deviceId == deviceId }
+        val newState = DeviceConnectionState(deviceId, status)
+        if (index >= 0) {
+            current[index] = newState
+        } else {
+            current.add(newState)
+        }
+        _deviceConnectionsFlow.value = current
     }
 }

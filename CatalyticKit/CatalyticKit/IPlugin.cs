@@ -34,6 +34,13 @@ public interface IPluginContext
     /// <param name="eventType">事件类型</param>
     /// <param name="data">事件数据</param>
     void PushEvent(string eventType, byte[] data);
+
+    /// <summary>
+    /// 获取设备缓冲的数据 (用于 Polling 模式)
+    /// </summary>
+    /// <param name="deviceId">设备 ID (或 Address)</param>
+    /// <returns>被缓冲的数据，如果没有数据返回空数组</returns>
+    byte[] GetDeviceData(string deviceId);
 }
 
 /// <summary>

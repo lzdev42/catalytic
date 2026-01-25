@@ -27,9 +27,12 @@ class GrpcRepository(
     // ========== 内部状态 ==========
     
     private val _slotsMap = MutableStateFlow<Map<Int, SlotState>>(emptyMap())
+
     private val _logsBuffer = MutableStateFlow<List<String>>(emptyList())
+    private val _deviceConnections = MutableStateFlow<List<io.github.lzdev42.catalyticui.model.DeviceConnectionState>>(emptyList())
     
     private var subscriptionJob: Job? = null
+    private var statusPollingJob: Job? = null
     
     // ========== EngineRepository 实现 ==========
     
@@ -240,6 +243,38 @@ class GrpcRepository(
     
     // ========== 连接管理 ==========
     
+    override val deviceConnectionsFlow: Flow<List<io.github.lzdev42.catalyticui.model.DeviceConnectionState>>
+        get() = _deviceConnections.asStateFlow()
+
+    override suspend fun connectDevice(deviceId: String): kotlin.Result<Unit> {
+        return executeRpc("ConnectDevice") {
+            val result = it.ConnectDevice().execute(DeviceId(id = deviceId))
+            if (!result.success) throw Exception(result.error)
+            // Immediately refresh status to feel responsive
+            refreshDeviceStatus(it)
+        }
+    }
+
+    override suspend fun disconnectDevice(deviceId: String): kotlin.Result<Unit> {
+        return executeRpc("DisconnectDevice") {
+            val result = it.DisconnectDevice().execute(DeviceId(id = deviceId))
+            if (!result.success) throw Exception(result.error)
+            refreshDeviceStatus(it)
+        }
+    }
+
+    private suspend fun refreshDeviceStatus(client: HostServiceClient) {
+         try {
+             val result = client.ListDeviceConnectionStatus().execute(Empty())
+             val states = result.items.map { Mappers.mapConnectionStatus(it) }
+             _deviceConnections.value = states
+         } catch (e: Exception) {
+             addLog("刷新设备状态失败: ${e.message}")
+         }
+    }
+
+    // ========== 连接管理 ==========
+    
     /**
      * 连接到 Host 并开始订阅事件
      */
@@ -249,6 +284,7 @@ class GrpcRepository(
         return result.fold(
             onSuccess = { client ->
                 startEventSubscription(client)
+                startStatusPolling(client)
                 loadInitialData(client)
                 kotlin.Result.success(Unit)
             },
@@ -261,9 +297,11 @@ class GrpcRepository(
      */
     fun disconnect() {
         subscriptionJob?.cancel()
+        statusPollingJob?.cancel()
         clientManager.disconnect()
         _slotsMap.value = emptyMap()
         _logsBuffer.value = emptyList()
+        _deviceConnections.value = emptyList()
     }
     
     /**
@@ -329,6 +367,16 @@ class GrpcRepository(
                     delay(3000)
                     clientManager.getClient()?.let { startEventSubscription(it) }
                 }
+            }
+        }
+    }
+
+    private fun startStatusPolling(client: HostServiceClient) {
+        statusPollingJob?.cancel()
+        statusPollingJob = scope.launch {
+            while (isActive) {
+                delay(2000) // Poll every 2 seconds
+                refreshDeviceStatus(client)
             }
         }
     }

@@ -355,6 +355,31 @@ data class AppStrings(
     @SerialName("connection_reconnecting")
     val connectionReconnecting: String = "Reconnecting...",
     
+    // ===== Connection Panel =====
+    @SerialName("panel_device_connections")
+    val panelDeviceConnections: String = "Device Connections",
+    
+    @SerialName("panel_connect_host_first")
+    val panelConnectHostFirst: String = "Please connect to Host first",
+    
+    @SerialName("panel_no_devices_configured")
+    val panelNoDevicesConfigured: String = "No devices configured",
+    
+    @SerialName("panel_connected_format")
+    val panelConnectedFormat: String = "%d / %d Connected",
+    
+    @SerialName("status_connecting")
+    val statusConnecting: String = "Connecting...",
+    
+    @SerialName("status_error")
+    val statusError: String = "Error",
+    
+    @SerialName("action_connect")
+    val actionConnect: String = "Connect",
+    
+    @SerialName("action_disconnect")
+    val actionDisconnect: String = "Disconnect",
+
     // ===== Appearance Tab =====
     @SerialName("appearance_title")
     val appearanceTitle: String = "Appearance",

@@ -128,6 +128,27 @@ public class GrpcHostServiceClient(
   ))
 
   /**
+   * =========== Device Connection Management ===========
+   */
+  override fun ConnectDevice(): GrpcCall<DeviceId, Result> = client.newCall(GrpcMethod(
+      path = "/catalytic.HostService/ConnectDevice",
+      requestAdapter = DeviceId.ADAPTER,
+      responseAdapter = Result.ADAPTER
+  ))
+
+  override fun DisconnectDevice(): GrpcCall<DeviceId, Result> = client.newCall(GrpcMethod(
+      path = "/catalytic.HostService/DisconnectDevice",
+      requestAdapter = DeviceId.ADAPTER,
+      responseAdapter = Result.ADAPTER
+  ))
+
+  override fun ListDeviceConnectionStatus(): GrpcCall<Empty, DeviceConnectionStatusList> = client.newCall(GrpcMethod(
+      path = "/catalytic.HostService/ListDeviceConnectionStatus",
+      requestAdapter = Empty.ADAPTER,
+      responseAdapter = DeviceConnectionStatusList.ADAPTER
+  ))
+
+  /**
    * =========== Slots ===========
    */
   override fun ListSlots(): GrpcCall<Empty, SlotList> = client.newCall(GrpcMethod(

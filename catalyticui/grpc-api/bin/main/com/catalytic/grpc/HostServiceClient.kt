@@ -69,6 +69,15 @@ public interface HostServiceClient : Service {
   public fun TestConnection(): GrpcCall<DeviceId, ConnectionTestResult>
 
   /**
+   * =========== Device Connection Management ===========
+   */
+  public fun ConnectDevice(): GrpcCall<DeviceId, Result>
+
+  public fun DisconnectDevice(): GrpcCall<DeviceId, Result>
+
+  public fun ListDeviceConnectionStatus(): GrpcCall<Empty, DeviceConnectionStatusList>
+
+  /**
    * =========== Slots ===========
    */
   public fun ListSlots(): GrpcCall<Empty, SlotList>

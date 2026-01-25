@@ -36,6 +36,11 @@ service HostService {
     rpc ScanDevices(ScanRequest) returns (ScanResult);
     rpc TestConnection(DeviceId) returns (ConnectionTestResult);
     
+    // =========== Device Connection Management ===========
+    rpc ConnectDevice(DeviceId) returns (Result);
+    rpc DisconnectDevice(DeviceId) returns (Result);
+    rpc ListDeviceConnectionStatus(Empty) returns (DeviceConnectionStatusList);
+    
     // =========== Slots ===========
     rpc ListSlots(Empty) returns (SlotList);
     rpc SetSlotBinding(SlotBinding) returns (Result);
@@ -156,6 +161,17 @@ message ConnectionTestResult {
     bool success = 1;
     string message = 2;
     int32 latency_ms = 3;
+}
+
+// 设备连接状态
+message DeviceConnectionStatus {
+    string device_id = 1;
+    string status = 2;       // "disconnected", "connecting", "connected", "error"
+    string error_message = 3; // 仅当 status="error" 时有值
+}
+
+message DeviceConnectionStatusList {
+    repeated DeviceConnectionStatus items = 1;
 }
 
 // =============================================================================

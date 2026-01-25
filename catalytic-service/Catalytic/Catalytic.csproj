@@ -19,7 +19,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\CatalyticKit\CatalyticKit.csproj" />
+      <ProjectReference Include="..\..\CatalyticKit\CatalyticKit\CatalyticKit.csproj" />
     </ItemGroup>
 
 </Project>

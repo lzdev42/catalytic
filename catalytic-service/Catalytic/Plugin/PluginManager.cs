@@ -82,6 +82,14 @@ internal sealed class PluginContext : IPluginContext
     {
         _manager.OnPluginEvent?.Invoke(new PluginEventArgs(eventType, data));
     }
+
+    /// <summary>
+    /// 获取设备缓冲的数据
+    /// </summary>
+    public byte[] GetDeviceData(string deviceId)
+    {
+        return _manager.DataManager?.GetData(deviceId) ?? Array.Empty<byte>();
+    }
 }
 
 /// <summary>
@@ -91,6 +99,7 @@ internal sealed class PluginContext : IPluginContext
 public sealed class PluginManager : IAsyncDisposable
 {
     private readonly string _pluginsDirectory;
+    public DataManager? DataManager { get; set; } // Property injection or Constructor injection logic
     
     // 使用并发字典保证线程安全
     private readonly ConcurrentDictionary<string, LoadedPlugin> _pluginsById = new();
@@ -112,9 +121,11 @@ public sealed class PluginManager : IAsyncDisposable
     /// <summary>
     /// 创建插件管理器
     /// </summary>
+    /// <param name="dataManager">数据管理器</param>
     /// <param name="pluginsDirectory">插件目录路径，默认为应用目录下的 plugins 文件夹</param>
-    public PluginManager(string? pluginsDirectory = null)
+    public PluginManager(DataManager dataManager, string? pluginsDirectory = null)
     {
+        DataManager = dataManager;
         _pluginsDirectory = pluginsDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins");
     }
 

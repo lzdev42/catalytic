@@ -20,7 +20,9 @@ import io.github.lzdev42.catalyticui.ui.components.SlotCard
 import io.github.lzdev42.catalyticui.ui.components.SettingsDialog
 import io.github.lzdev42.catalyticui.ui.components.StatusBar
 import io.github.lzdev42.catalyticui.ui.components.BottomLogPanel
+
 import io.github.lzdev42.catalyticui.ui.components.SimpleAlertDialog
+import io.github.lzdev42.catalyticui.ui.components.DeviceConnectionPanel
 import io.github.lzdev42.catalyticui.model.SlotState
 import io.github.lzdev42.catalyticui.model.SlotStatus
 import io.github.lzdev42.catalyticui.model.SlotVariable
@@ -54,7 +56,10 @@ fun MainScreen(
     val systemLogs by viewModel.systemLogs.collectAsState()
     val systemStatus by viewModel.systemStatus.collectAsState()
     val isConnected by viewModel.isConnected.collectAsState()
+
     val alertState by viewModel.alertState.collectAsState()
+    val deviceConnections by viewModel.deviceConnections.collectAsState()
+    val allDevices by viewModel.allDevices.collectAsState()
     
     // Current time
     var currentTime by remember { mutableStateOf("00:00:00") }
@@ -102,6 +107,15 @@ fun MainScreen(
             onToggleTheme = onToggleTheme,
             onOpenSettings = { showSettings = true },
             onLanguageChange = onLanguageChange
+        )
+        
+        // Device Connection Panel
+        DeviceConnectionPanel(
+            isConnected = isConnected,
+            deviceConnections = deviceConnections,
+            allDevices = allDevices,
+            onConnect = { viewModel.connectDevice(it) },
+            onDisconnect = { viewModel.disconnectDevice(it) }
         )
         
         // Main Content
